@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include <algorithm>
 #include <cuda_runtime.h>
+#include "AES/AESCPU.h"
 
 template <class T>
 class CudaArray
@@ -12,11 +13,14 @@ public:
     explicit CudaArray()
         : start_(0),
           end_(0)
-    {}
+    {
+        aesCPU = new AES(128);
+    }
 
     explicit CudaArray(size_t size)
     {
         allocate(size);
+        aesCPU = new AES(128);
     }
 
     ~CudaArray()
@@ -47,8 +51,12 @@ public:
 
     void set(const T* src, size_t size)
     {
-        size_t min = std::min(size, getSize());
-        cudaError_t result = cudaMemcpy(start_, src, min * sizeof(T), cudaMemcpyHostToDevice);
+        unsigned int outLen;
+        unsigned char key[] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f }; 
+        auto out = aesCPU->EncryptECB((unsigned char*) src, size * sizeof(T), key, outLen);
+        this->encryptedSize = outLen;
+
+        cudaError_t result = cudaMemcpy(start_, out, outLen, cudaMemcpyHostToDevice);
         if (result != cudaSuccess)
         {
             throw std::runtime_error("failed to copy to device memory");
@@ -56,8 +64,7 @@ public:
     }
     void get(T* dest, size_t size)
     {
-        size_t min = std::min(size, getSize());
-        cudaError_t result = cudaMemcpy(dest, start_, min * sizeof(T), cudaMemcpyDeviceToHost);
+        cudaError_t result = cudaMemcpy(dest, start_, this->encryptedSize, cudaMemcpyDeviceToHost);
         if (result != cudaSuccess)
         {
             throw std::runtime_error("failed to copy to host memory");
@@ -91,6 +98,9 @@ private:
 
     T* start_;
     T* end_;
+    // in a real system, there would be a mechanism for the GPU and CPU to decide on a key at start
+    AES* aesCPU;
+    uint32_t encryptedSize;
 };
 
 #endif

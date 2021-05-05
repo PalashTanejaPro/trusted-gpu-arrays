@@ -1,6 +1,6 @@
 // https://github.com/SergeyBel/AES/
-#ifndef _AES_H_
-#define _AES_H_
+#ifndef _AESCPU_H_
+#define _AESCPU_H_
 
 #include<cstring>
 #include <iostream>

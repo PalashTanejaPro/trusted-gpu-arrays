@@ -1,5 +1,5 @@
 // https://github.com/SergeyBel/AES/blob/master/src/AES.cpp
-#include "AES.h"
+#include "AESCPU.h"
 
 AES::AES(int keyLen)
 {
