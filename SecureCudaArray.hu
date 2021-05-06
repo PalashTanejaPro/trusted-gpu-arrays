@@ -10,10 +10,10 @@
 #define AES_BLOCK_SIZE 16
 
 template <class T>
-class CudaArray
+class SecureCudaArray
 {
 public:
-    explicit CudaArray()
+    explicit SecureCudaArray()
         : start_(0),
           end_(0)
     {
@@ -21,7 +21,7 @@ public:
         encryptedSize = 0;
     }
 
-    explicit CudaArray(size_t size)
+    explicit SecureCudaArray(size_t size)
     {
         size_t padding = size % 16;
         size += padding;
@@ -30,7 +30,7 @@ public:
         encryptedSize = size;
     }
 
-    ~CudaArray()
+    ~SecureCudaArray()
     {
         free();
     }
