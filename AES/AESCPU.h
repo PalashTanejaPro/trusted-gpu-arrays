@@ -5,6 +5,7 @@
 #include<cstring>
 #include <iostream>
 #include <stdio.h>
+#include "../AES.h"
 
 using namespace std;
 

@@ -4,6 +4,7 @@
 #include <time.h>
 #include <math.h>
 #include <inttypes.h>
+#include "../AES.h"
 
 
 uint8_t ctx_key[32]; 
@@ -402,7 +403,7 @@ void decryptdemo(uint8_t key[32], uint8_t *buf, unsigned long numbytes){
 
   cudaMemcpyToSymbol(sboxinv, sboxinv, sizeof(uint8_t)*256);
 
-  printf("\nBeginning decryption\n");
+  // aes256_init(key);
 
   cudaMalloc((void**)&buf_d, numbytes);
   cudaMalloc((void**)&ctx_deckey_d, sizeof(ctx_deckey));
@@ -428,94 +429,3 @@ void decryptdemo(uint8_t key[32], uint8_t *buf, unsigned long numbytes){
 
 
 __global__ void GPU_init() { }
-
-
-
-int main(){
-
-  // open file
-  FILE *file;
-  uint8_t *buf; 
-  unsigned long numbytes;
-  char *fname;
-  clock_t start, enc_time, dec_time, end;
-  int mili_sec, i;
-  int padding;
- 
-  uint8_t key[32];
-
-  int deviceCount = 0;
-  cudaError_t error_id = cudaGetDeviceCount(&deviceCount);
-
-  if (error_id != cudaSuccess){
-    printf("Error: %s\n", cudaGetErrorString(error_id));
-    printf("Exiting...\n");
-    exit(EXIT_FAILURE);
-  }
-
-  if (deviceCount == 0){
-    printf("There are no available device(s) that support CUDA\n");
-    exit(EXIT_FAILURE);
-  }
-
-
-  // handle txt file
-  fname = "input.txt";  
-  file = fopen(fname, "r");
-  if (file == NULL) {printf("File %s doesn't exist\n", fname); exit(1); }
-  printf("Opened file %s\n", fname);
-  fseek(file, 0L, SEEK_END);
-  numbytes = ftell(file);
-  printf("Size is %lu\n", numbytes);
-
-  // copy file into memory
-  fseek(file, 0L, SEEK_SET);
-  buf = (uint8_t*)calloc(numbytes, sizeof(uint8_t));
-  if(buf == NULL) exit(1);
-  if (fread(buf, 1, numbytes, file) != numbytes)
-  {
-    printf("Unable to read all bytes from file %s\n", fname);
-    exit(EXIT_FAILURE);
-  }
-  fclose(file);
-
-  // calculate the padding
-  padding = numbytes % AES_BLOCK_SIZE;
-  numbytes += padding;
-  printf("Padding file with %d bytes for a new size of %lu\n", padding, numbytes);
-
-  // generate key
-  for (i = 0; i < sizeof(key);i++) key[i] = i;
-
-  // this is to force nvcc to put the gpu initialization here
-  GPU_init<<<1, 1>>>();
-
-  // encryption
-  start = clock();
-  encryptdemo(key, buf, numbytes);
-  end = clock();
-  printf("time used:%f\n",  (double)(end - start) / CLOCKS_PER_SEC);
-  printf("GPU encryption throughput: %f bytes/second\n",  (double)(numbytes) / ((double)(end - start) / CLOCKS_PER_SEC));
-
-
-  // write into file
-  file = fopen("cipher.txt", "w");
-  fwrite(buf, 1, numbytes, file);
-  fclose(file);
-
-  // decryption
-  start = clock();
-  decryptdemo(key, buf, numbytes);
-  end = clock();
-  printf("time used:%f\n",  (double)(end - start) / CLOCKS_PER_SEC);
-  printf("GPU encryption throughput: %f bytes/second\n",  (double)(numbytes) / ((double)(end - start) / CLOCKS_PER_SEC));
-
-
-  // write into file
-  file = fopen("output.txt", "w");
-  fwrite(buf, 1, numbytes - padding, file);
-  fclose(file);
-
-  free(buf);
-  return EXIT_SUCCESS;
-}
