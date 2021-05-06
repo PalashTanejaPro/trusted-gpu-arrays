@@ -70,10 +70,8 @@ public:
     {
         unsigned int outLen;
         unsigned char key[] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f }; 
-        // auto out = aesCPU->EncryptECB((unsigned char*) src, size * sizeof(T), key, outLen);
-        cudaError_t result = cudaMemcpy(start_, src, size * sizeof(T), cudaMemcpyHostToDevice);
-
-        encryptdemo(key, (uint8_t*) start_, size * sizeof(T));
+        auto out = aesCPU->EncryptECB((unsigned char*) src, size * sizeof(T), key, outLen);
+        cudaError_t result = cudaMemcpy(start_, out, size * sizeof(T), cudaMemcpyHostToDevice);
 
         if (result != cudaSuccess)
         {
