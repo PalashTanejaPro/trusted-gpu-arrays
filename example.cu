@@ -1,10 +1,27 @@
 #include "kmeans.h"
 #include <vector>
 #include <cstdio>
-#include "../../SecureCudaArray.hu"
+#include "./SecureCudaArray.hu"
 #include <cmath>
 #include <iostream>
 
+
+/* 
+Kmeans algorithm
+Assignment step: 
+    Assign each observation to the cluster with the nearest mean: that with the least squared Euclidean distance.
+    
+    This is done by get_nearest_centroid functions
+
+Update step:
+     Recalculate means (centroids) for observations assigned to each cluster.
+
+    This is done by get_new_centroid functions
+
+Also created "_shared" versions of these functions to speed up computations by using the architectural caches on GPUs
+
+Unfortunately the version of Cuda my university uses only allows for C-style coding, therefore some of this code is less modularized than I would like it to be.
+*/
 __device__ float distance(float* __restrict__ a, float* __restrict__ b, int dim) {
     float sum = 0;
     for(int i = 0; i < dim; i++)
@@ -23,7 +40,7 @@ __global__ void get_nearest_centroid(float* __restrict__ data,
                                      int N,
                                      int k,
                                      int dim) {
-    // similar to prefix sum, everyone gets all the data and works on their specific portion of it
+    // similar to prefix sum, every thread gets all the data and works on their specific portion of it
     const int idx = threadIdx.x + blockIdx.x * blockDim.x;
     if (idx < N) {
         float* p = data + (idx * dim);
@@ -58,7 +75,7 @@ __global__ void get_nearest_centroid_shared(float* __restrict__ data,
                                      int dim) {
     extern __shared__ float centroids[];
 
-    // similar to prefix sum, everyone gets all the data and works on their specific portion of it
+    // similar to prefix sum, every thread gets all the data and works on their specific portion of it
     const int idx = threadIdx.x + blockIdx.x * blockDim.x;
 
     if (idx >= N) return;
@@ -237,14 +254,10 @@ vector<float> kmeans_plus_plus(vector<Point> points, Point* centroids, int k) {
 }
 
 KMeans kmeans_cuda(vector<Point> points, Point* centroids, int k, int max_iterations, float threshold, bool shared) {
+    // **** Memory ops
+
     int N = points.size();
     int dim = points[0].coord.size();
-
-    // cudaEvent_t mem_start, mem_end;
-    // cudaEventCreate(&mem_start);
-    // cudaEventCreate(&mem_end);
-
-    // cudaEventRecord(mem_start);
 
     float* flat_points = (float*) malloc(sizeof(float) * N * dim);
     for(int i = 0; i < N; ++i) {
@@ -270,13 +283,7 @@ KMeans kmeans_cuda(vector<Point> points, Point* centroids, int k, int max_iterat
     SecureCudaArray<float>* centroid_sum = new SecureCudaArray<float>(k * dim);
     cluster_assignment->fillZeroes();
 
-    // cudaEventRecord(mem_end);
-    // cudaDeviceSynchronize();
-
-    // float mem_time = 0;
-    // cudaEventElapsedTime(&mem_time, mem_start, mem_end);
-
-    // cout << "*** mem_time " <<mem_time << '\n';
+    // End of memory ops
 
     const int threads = 1024;
     const int blocks = (N + threads - 1) / threads;
@@ -285,6 +292,7 @@ KMeans kmeans_cuda(vector<Point> points, Point* centroids, int k, int max_iterat
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
 
+    // *** Main loop
     int iterations = 0;
     float total_time = 0;
     for(int i = 0; i < max_iterations; ++i) {
