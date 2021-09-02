@@ -10,7 +10,11 @@ I attempted to provide protection against PCI bus snooping attacks and protectin
 # Basic principle
  I perform symmetric key encryption using AES before transferring those contents to the GPU. Now when those contents are accessed on the GPU, an AES decryption operation is performed. Hence we ensure that a man-in-the-middle of these transfers would not know the data contents that were transferred.
  
- # Abstractions
+ # Abstractions and interesting files
+ My main contribution is providing this secure interface in the form of an Array class. It makes development on Cuda a bit easier by handling memory allocations and provides security. 
+
+`example.cu` is another interesting file because it's my efficient implementation of the K-means algorithm for a GPU. It uses architectural features of the GPU (many cores, shared memory cache) to create a faster algorithm than a simple concurrent program.
+The AES encryption and decryption files are from a research project and were created by researchers to be secure against side-channel attacks.
  
 ```
 class SecureCudaArray {
